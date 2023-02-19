@@ -1374,26 +1374,35 @@ int64_t get_pivot(const uint64_t* ptr, const int64_t left,
 {
   const int64_t middle = ((right-left) / 2) + left;
   int64_t ret=0;
-  if((ptr[middle]>ptr[left] && ptr[left]>=ptr[right]) || (ptr[right]>=ptr[left] && ptr[left]>ptr[middle])) {
+  if((ptr[middle]>ptr[left] && ptr[left]>=ptr[right]) || 
+        (ptr[right]>=ptr[left] && ptr[left]>ptr[middle])) {
     ret = left;
-  } else if((ptr[left]>=ptr[middle] && ptr[middle]>=ptr[right]) || (ptr[right]>=ptr[middle] && ptr[middle]>=ptr[left])) {
+  } else if((ptr[left]>=ptr[middle] && ptr[middle]>=ptr[right]) || 
+          (ptr[right]>=ptr[middle] && ptr[middle]>=ptr[left])) {
     ret = middle;
-  } else if((ptr[left]>ptr[right] && ptr[right]>ptr[middle]) || (ptr[middle]>ptr[right] && ptr[right]>ptr[left])) {
+  } else if((ptr[left]>ptr[right] && ptr[right]>ptr[middle]) || 
+          (ptr[middle]>ptr[right] && ptr[right]>ptr[left])) {
     ret = right;
   }  
-
   return ret;
+}
+
+void sawp(uint64_t a, uint64_t b)
+{
+    a = a^b;
+    b = a^b;
+    a = b^a;
 }
 
 int64_t quick_sort(uint64_t* keys, uint64_t* values, const int64_t left,
                            const int64_t right)
 {
   const int64_t idx = get_pivot(keys, left, right);
-  std::swap(keys[idx], keys[right]);
-  std::swap(values[idx], values[right]);
+  swap(keys[idx], keys[right]);
+  swap(values[idx], values[right]);
   const int64_t cut = do_partition(keys, values, left, right - 1, keys[right]);
-  std::swap(keys[cut], keys[right]);
-  std::swap(values[cut], values[right]);
+  swap(keys[cut], keys[right]);
+  swap(values[cut], values[right]);
   return cut;
 }
 
@@ -1412,8 +1421,8 @@ void heapify(uint64_t* keys, uint64_t* values, int64_t idx, int64_t size)
     if (keys[j] < keys[i]) {
       break;
     }
-    std::swap(keys[i], keys[j]);
-    std::swap(values[i], values[j]);
+    swap(keys[i], keys[j]);
+    swap(values[i], values[j]);
     i = j;
   }
 }
@@ -1424,8 +1433,8 @@ void heap_sort(uint64_t* keys, uint64_t* values, int64_t size)
     heapify(keys, values, i, size);
   }
   for (int64_t i = size - 1; i > 0; i--) {
-    std::swap(keys[0], keys[i]);
-    std::swap(values[0], values[i]);
+    swap(keys[0], keys[i]);
+    swap(values[0], values[i]);
     heapify(keys, values, 0, i);
   }
 }
@@ -1461,6 +1470,25 @@ void do_sort(uint64_t* keys, uint64_t* values, const int64_t left,
   }
 }
 
+bool get_sort_key(uint64_t* key, char* value, int64_t round, int64_t size)
+{
+    if round * 8 >= size {
+        return false;
+    }
+    int64_t offset = round * 8;
+
+    char *p = (char*)key;
+    key[7] = value[offset + 0];
+    key[6] = value[offset + 1];
+    key[5] = value[offset + 2];
+    key[4] = value[offset + 3];
+    key[3] = value[offset + 4];
+    key[2] = value[offset + 5];
+    key[1] = value[offset + 6];
+    key[0] = value[offset + 7];
+
+    return true;
+}
 /*
  * Due to the sorting algorithm implemented by the vectorization method can 
  * only sort numerical arrays.We use key-value to solve this problem. The key 
@@ -1469,13 +1497,13 @@ void do_sort(uint64_t* keys, uint64_t* values, const int64_t left,
  * of value are also exchanged.
  *
  * */
-bool sort_loop(uint64_t* keys, char** values, int64_t round, 
-                int64_t left, int64_t right)
+bool sort_loop(uint64_t* keys, char** values, int64_t round, int64_t value_size, 
+    int64_t left, int64_t right)
 {
   int sucess = true;
   for (int64_t i = left; sucess && i < right; i++) {
     // Use the get_sort_key method provided by T to get the key needed for sorting
-    ret = values[i]->get_sort_key(&keys[i]);
+    ret = get_sort_key(&keys[i], values[i], round, value_size)
   }
   if sucess {
     // sort the keys array
@@ -1526,13 +1554,15 @@ bool sort_loop(uint64_t* keys, char** values, int64_t round,
   return ret;
 }
 
-bool sort(uint64_t* keys, char** values, const int64_t size)
+bool sort(uint64_t* keys, char** values, const int64_t value_size, 
+        const int64_t values_size)
 {
   bool sucess = true;
-  if (keys == NULL || values == NULL || size < 0) {
+  if (keys == NULL || values == NULL || value_size % 8 || value_size <=0 || 
+          values_size <= 0) {
     ret = false;
   } else {
-    ret = sort_loop(keys, values, 0, 0, size);
+    ret = sort_loop(keys, values, 0, value_size, 0, values_size);
   }
   return ret;
 }
